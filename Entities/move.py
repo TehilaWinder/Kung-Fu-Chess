@@ -22,3 +22,6 @@ class Move:
             if abs(r - r_src) == abs(c - c_src): return True  # אלכסוני
             
         return False
+    
+    def starts_from(self, row, col):
+        return self.from_cell == (row, col)

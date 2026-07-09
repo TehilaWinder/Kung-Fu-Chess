@@ -5,7 +5,8 @@ class Piece:
     def __init__(self, color, piece_type):
         self.color = color          # 'w' (לבן) או 'b' (שחור)
         self.piece_type = piece_type  # 'K', 'Q', 'R', 'B', 'N', 'P'
-
+    def __str__(self):
+        return f"{self.color}{self.piece_type}"
 
     def is_valid_step(self, board, from_cell, to_cell):
         raise NotImplementedError
@@ -32,7 +33,10 @@ class Piece:
 
         return False
 
-
+    def is_king(self):
+        return self.piece_type == 'K'
+    def can_capture(self, other_piece):
+        return other_piece.color != self.color
 # =====================================================================
 # מחלקות הכלים הספציפיות - ירושה מ-Piece
 # =====================================================================

@@ -77,6 +77,13 @@ class Board:
         
             
         return captured_piece
+    def resolve_arrival(self, move):
+        """מנסה לבצע נחיתה של move. מחזירה True אם התוצאה היא אכילת מלך."""
+        dest_piece = self.get_piece_at(*move.to_cell)
+        if dest_piece != cg.EMPTY_CELL and not move.piece.can_capture(dest_piece):
+            return False  # התנגשות ידידותית — לא מבוצע כלום
+        captured = self.execute_move(move)
+        return captured != cg.EMPTY_CELL and captured.is_king()
 
     def is_move_valid_on_board(self, piece, from_cell, to_cell):
         

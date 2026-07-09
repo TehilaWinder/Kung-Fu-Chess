@@ -1,3 +1,7 @@
+import os
+import sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import config as cg
 from Adapters.input_parser import InputParser
 from Service.chess_game import Chess
@@ -29,3 +33,6 @@ for command in command_lines:
 
     elif cmd == cg.CMD_WAIT:
         game.advance_clock(int(parts[1]))
+    elif cmd == cg.CMD_JUMP:
+        row, col = mapper.pixel_to_cell(int(parts[1]), int(parts[2]))
+        game.handle_jump(row, col)

@@ -15,6 +15,7 @@ EMPTY_CELL = "."         # מחרוזת המייצגת משבצת ריקה
 CMD_PRINT = "print"
 CMD_WAIT = "wait"
 CMD_CLICK = "click"
+CMD_JUMP = "jump"
 
 # =====================================================================
 # הגדרות כלים וצבעים (Game Pieces Definitions)
