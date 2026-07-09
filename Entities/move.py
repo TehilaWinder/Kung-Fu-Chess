@@ -12,7 +12,6 @@ class Move:
         r_src, c_src = self.from_cell
         r_dst, c_dst = self.to_cell
         
-        # אם המשבצת היא בדיוק המקור או היעד
         if (r, c) == (r_src, c_src) or (r, c) == (r_dst, c_dst):
             return True
             

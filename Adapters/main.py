@@ -1,9 +1,11 @@
 import config as cg
-from input_parser import InputParser
-from chess_game import Chess
+from Adapters.input_parser import InputParser
+from Service.chess_game import Chess
+from Adapters.board_mapper import BoardMapper
 
 parser = InputParser()
 board_lines, command_lines = parser.read_from_stdin()
+mapper = BoardMapper()
 
 game = Chess(board_lines)
 
@@ -18,13 +20,11 @@ for command in command_lines:
     cmd = parts[0]
 
     if cmd == cg.CMD_PRINT:
-        game.update_board()
-        game.board.print_board()
+        game.print_game()
 
     elif cmd == cg.CMD_CLICK:
         game.update_board()
-        row = int(parts[2]) // cg.CELL_SIZE
-        col = int(parts[1]) // cg.CELL_SIZE
+        row, col = mapper.pixel_to_cell(int(parts[1]), int(parts[2]))
         game.handle_click(row, col)
 
     elif cmd == cg.CMD_WAIT:

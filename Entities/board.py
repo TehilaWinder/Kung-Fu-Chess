@@ -1,11 +1,12 @@
 import config as cg
-from pieces import TYPE_TO_CLASS
+from Entities.pieces import TYPE_TO_CLASS
 
 class Board:
     def __init__(self):
         self.grid = []  
         self.height = 0
         self.width = 0
+    
 
     def load_and_validate(self, board_lines):
         
@@ -54,15 +55,34 @@ class Board:
         return self.grid[row][col]
 
     def set_piece_at(self, row, col, piece):
-        """ מעדכנת כלי במשבצת מסוימת (או מוחקת על ידי השמת cg.EMPTY_CELL) """
+        
         self.grid[row][col] = piece
 
     def is_within_bounds(self, row, col):
         """ בדיקה האם הקואורדינטות נמצאות בתוך גבולות הלוח """
         return 0 <= row < self.height and 0 <= col < self.width
+    
+    def execute_move(self, move):
+        r_from, c_from = move.from_cell
+        r_to, c_to = move.to_cell
+        
+        captured_piece = self.get_piece_at(r_to, c_to)
+        
+        self.set_piece_at(r_from, c_from, cg.EMPTY_CELL)
+        
+        
+        promoted_piece = move.piece.promote(self, move.to_cell)
+            
+        self.set_piece_at(r_to, c_to, promoted_piece)
+        
+            
+        return captured_piece
+
+    def is_move_valid_on_board(self, piece, from_cell, to_cell):
+        
+        return piece.is_valid_step(self, from_cell, to_cell)
 
     def print_board(self):
         for row in self.grid:
-            # שימוש ב-str(cell) מפעיל אוטומטית את פונקציית __str__ של הכלים ומחזיר "wQ", "bK", "." וכו'
             row_str = [str(cell) for cell in row]
             print(' '.join(row_str))
