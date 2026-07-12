@@ -25,3 +25,6 @@ class Move:
     
     def starts_from(self, row, col):
         return self.from_cell == (row, col)
+
+    def is_due(self, clock):
+        return self.arrival_time <= clock
