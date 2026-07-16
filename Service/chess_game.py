@@ -2,13 +2,19 @@ import config as cg
 from Entities.board import Board
 from Entities.move import Move
 from Entities.Jump_action import JumpAction
+from Entities.position import Position
 from Rules.move_rules import MoveRules
 from Realtime.scheduler import Scheduler
+from errors import BoardValidationError
 class Chess:
     def __init__(self, board):
 
         self.board = Board()
-        self.is_valid_setup = self.board.load_and_validate(board)
+        try:
+            self.is_valid_setup = self.board.load_and_validate(board)
+        except BoardValidationError as error:
+            print(error)
+            self.is_valid_setup = False
 
         self.is_game_over = False
         self.selected_piece_coords = None
@@ -59,13 +65,18 @@ class Chess:
             steps = max(abs(row - r_src), abs(col - c_src))
             travel_time = steps * cg.TIME_PER_CELL
             arrival_time = self.scheduler.game_clock + travel_time
+            departure_time = self.scheduler.game_clock
 
-            new_move = Move((r_src, c_src), (row, col), piece, arrival_time)
+            path = self.rules.build_path((r_src, c_src), (row, col), piece, departure_time)
+
+            new_move = Move(Position(r_src, c_src), Position(row, col), piece, arrival_time, departure_time, path)
             self.scheduler.queue_move(new_move)
 
             self.selected_piece_coords = None
 
     def handle_jump(self, row, col):
+        if not self.board.is_within_bounds(row, col):
+            return
         self.update_board()
         if self.board.is_empty(row, col):
             return

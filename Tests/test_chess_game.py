@@ -1,96 +1,204 @@
+# -*- coding: utf-8 -*-
+"""
+טסטים ל-Service/chess_game.py - מחלקת Chess.
+
+בניגוד לשאר קבצי הטסטים (שבודקים יחידה אחת מבודדת), אלה טסטים
+ברמת אינטגרציה: הם מפעילים את Chess כמו שה-Adapters/main.py עושה
+(handle_click / handle_jump / advance_clock / print_game), ובודקים
+את הפלט הסופי של הלוח. שימושי לוודא שכל היחידות (Board, Scheduler,
+MoveRules, Pieces) עובדות נכון ביחד.
+
+תרחישי ה"---" למטה (jump_lands_same_square וכו') הם בדיוק תרחישי
+המרצה מ-cases.py, רק מורצים ישירות מול Chess במקום מול תהליך נפרד.
+"""
 import pytest
 import config as cg
 from Service.chess_game import Chess
 
-# =====================================================================
-# הגדרת נתוני הטסטים של המרצה (העתק-הדבק מדויק של הקלטים והפלטים)
-# =====================================================================
-TEST_CASES = [
-    # טסט 1: בדיקת פקודת jump ו-wait בסיסית
-    (
-        ["wK . .", ".  . .", ".  . ."],  # לוח התחלתי (שורות)
-        [("jump", 150, 150), ("wait", 1000), ("print", "board")],  # פקודות מתורגמות
-        ". .\n. wK .\n. ."  # פלט צפוי (נרמל למחרוזת אחת)
-    ),
-    
-    # טסט 2: כלי באוויר אוכל אויב שמגיע
-    (
-        [". . .", "wK bR .", ". . ."],
-        [("jump", 50, 150), ("click", 150, 150), ("click", 50, 150), ("wait", 1000), ("print", "board")],
-        ". . .\nwK . .\n. . ."
-    ),
-    
-    # טסט 3: jump מאוחר מדי לא מציל את הכלי
-    (
-        [". . .", "wK bR .", ". . ."],
-        [("click", 150, 150), ("click", 50, 150), ("wait", 1000), ("jump", 50, 150), ("print", "board")],
-        ". . .\nbR . .\n. . ."
-    ),
-    
-    # טסט 4: אויב מגיע אחרי נחיתה ואוכל רגיל
-    (
-        [". . . .", "wK . . bR", ". . . ."],
-        [("jump", 50, 150), ("wait", 1000), ("click", 350, 150), ("click", 50, 150), ("wait", 3000), ("print", "board")],
-        ". . . .\nbR . . .\n. . . ."
-    ),
-    
-    # טסט 5: אי אפשר לעשות jump בזמן תנועה
-    (
-        ["wR . ."],
-        [("click", 50, 50), ("click", 250, 50), ("wait", 500), ("jump", 50, 50), ("wait", 1500), ("print", "board")],
-        ". . wR"
-    ),
-    
-    # טסט 6: כלי באוויר יכול לאכול רק אויב (ולא כלי מאותו צבע)
-    (
-        [". . .", "wK wR .", ". . ."],
-        [("jump", 50, 150), ("click", 150, 150), ("click", 50, 150), ("wait", 1000), ("print", "board")],
-        ". . .\nwK wR .\n. . ."
+
+def parse_board(*rows):
+    """שורות ASCII כמו "wR . ." -> הפורמט שה-Chess מצפה לו (רשימת רשימות טוקנים)."""
+    return [row.split() for row in rows]
+
+
+def run_click(game, x, y):
+    row, col = y // cg.CELL_SIZE, x // cg.CELL_SIZE
+    game.handle_click(row, col)
+
+
+def run_jump(game, x, y):
+    row, col = y // cg.CELL_SIZE, x // cg.CELL_SIZE
+    game.handle_jump(row, col)
+
+
+def board_text(game):
+    game.update_board()
+    return "\n".join(
+        " ".join(str(cell) for cell in row) for row in game.board.grid
     )
+
+
+# ---------- אתחול ----------
+
+def test_chess_accepts_a_well_formed_board():
+    game = Chess(parse_board("wR . .", ". . ."))
+    assert game.is_valid_setup is True
+
+
+def test_chess_rejects_a_board_with_mismatched_row_widths():
+    game = Chess([["wR", ".", "."], [".", "."]])
+    assert game.is_valid_setup is False
+
+
+# ---------- handle_click: בחירה ותנועה ----------
+
+def test_click_on_empty_cell_selects_nothing():
+    game = Chess(parse_board("wR . ."))
+    run_click(game, x=150, y=50)  # (0,1) - ריק
+    assert game.selected_piece_coords is None
+
+
+def test_click_on_a_piece_then_a_legal_target_queues_a_move():
+    game = Chess(parse_board("wR . ."))
+    run_click(game, x=50, y=50)    # בוחר את wR ב-(0,0)
+    run_click(game, x=250, y=50)   # יעד חוקי (0,2)
+    assert len(game.scheduler.pending_moves) == 1
+    assert game.selected_piece_coords is None  # הבחירה מתאפסת אחרי שליחת המהלך
+
+
+def test_click_outside_the_board_deselects_the_current_piece():
+    game = Chess(parse_board("wR . ."))
+    run_click(game, x=50, y=50)     # בוחר כלי
+    run_click(game, x=-100, y=-100)  # קליק מחוץ ללוח
+    assert game.selected_piece_coords is None
+
+
+def test_clicking_a_second_piece_of_the_same_color_reselects_it_instead_of_moving():
+    game = Chess(parse_board("wR wN ."))
+    run_click(game, x=50, y=50)   # בוחר wR
+    run_click(game, x=150, y=50)  # קליק על wN - אותו צבע
+    assert game.selected_piece_coords == (0, 1)
+    assert game.scheduler.pending_moves == []
+
+
+def test_clicking_an_illegal_target_deselects_without_queueing_a_move():
+    game = Chess(parse_board(
+        "wR . .",
+        ". . .",
+    ))
+    run_click(game, x=50, y=50)   # בוחר wR ב-(0,0)
+    run_click(game, x=250, y=150)  # יעד לא חוקי לצריח (1,2)
+    assert game.selected_piece_coords is None
+    assert game.scheduler.pending_moves == []
+
+
+# ---------- handle_jump ----------
+
+def test_handle_jump_queues_a_jump_action_for_an_occupied_cell():
+    game = Chess(parse_board("wK . ."))
+    run_jump(game, x=50, y=50)
+    assert len(game.scheduler.active_jumps) == 1
+
+
+def test_handle_jump_does_nothing_for_an_empty_cell():
+    game = Chess(parse_board(". . ."))
+    run_jump(game, x=50, y=50)
+    assert game.scheduler.active_jumps == []
+
+
+def test_handle_jump_does_nothing_when_a_move_is_already_pending_from_that_cell():
+    game = Chess(parse_board("wR . ."))
+    run_click(game, x=50, y=50)
+    run_click(game, x=250, y=50)  # שולח את wR לתנועה
+    run_jump(game, x=50, y=50)    # מנסה לקפוץ מהמשבצת שממנה הוא כבר יצא
+    assert game.scheduler.active_jumps == []
+
+
+# ---------- advance_clock / is_game_over ----------
+
+def test_advance_clock_lands_a_pending_move_after_enough_time():
+    game = Chess(parse_board("wR . ."))
+    run_click(game, x=50, y=50)
+    run_click(game, x=250, y=50)  # שתי משבצות -> 2 * TIME_PER_CELL
+    game.advance_clock(2 * cg.TIME_PER_CELL)
+    assert board_text(game) == ". . wR"
+
+
+def test_is_game_over_true_once_a_king_is_captured():
+    game = Chess(parse_board("wR bK ."))
+    run_click(game, x=50, y=50)
+    run_click(game, x=150, y=50)
+    game.advance_clock(cg.TIME_PER_CELL)
+    assert game.is_game_over is True
+
+
+def test_advance_clock_does_nothing_once_the_game_is_over():
+    game = Chess(parse_board("wR bK ."))
+    run_click(game, x=50, y=50)
+    run_click(game, x=150, y=50)
+    game.advance_clock(cg.TIME_PER_CELL)
+    clock_after_win = game.scheduler.game_clock
+    game.advance_clock(5000)
+    assert game.scheduler.game_clock == clock_after_win
+
+
+# ---------- תרחישי המרצה (מתוך cases.py), מורצים ישירות מול Chess ----------
+
+INSTRUCTOR_SCENARIOS = [
+    (
+        "jump_lands_same_square",
+        (". . .", ". wK .", ". . ."),
+        [("jump", 150, 150), ("wait", 1000)],
+        ". . .\n. wK .\n. . .",
+    ),
+    (
+        "jump_catches_incoming_enemy",
+        (". . .", "wK bR .", ". . ."),
+        [("jump", 50, 150), ("click", 150, 150), ("click", 50, 150), ("wait", 1000)],
+        ". . .\nwK . .\n. . .",
+    ),
+    (
+        "late_jump_does_not_save_piece",
+        (". . .", "wK bR .", ". . ."),
+        [("click", 150, 150), ("click", 50, 150), ("wait", 1000), ("jump", 50, 150)],
+        ". . .\nbR . .\n. . .",
+    ),
+    (
+        "enemy_arrives_after_landing_and_captures_normally",
+        (". . . .", "wK . . bR", ". . . ."),
+        [("jump", 50, 150), ("wait", 1000), ("click", 350, 150), ("click", 50, 150), ("wait", 3000)],
+        ". . . .\nbR . . .\n. . . .",
+    ),
+    (
+        "cannot_jump_while_piece_is_moving",
+        ("wR . .",),
+        [("click", 50, 50), ("click", 250, 50), ("wait", 500), ("jump", 50, 50), ("wait", 1500)],
+        ". . wR",
+    ),
+    (
+        "airborne_piece_cannot_capture_same_color",
+        (". . .", "wK wR .", ". . ."),
+        [("jump", 50, 150), ("click", 150, 150), ("click", 50, 150), ("wait", 1000)],
+        ". . .\nwK wR .\n. . .",
+    ),
 ]
 
-# =====================================================================
-# פונקציית הטסט האוטומטית - רצה בלולאה על כל המקרים מעל!
-# =====================================================================
-@pytest.mark.parametrize("board_lines, commands, expected_output", TEST_CASES)
-def test_instructor_scenarios(board_lines, commands, expected_output, capsys):
-    """
-    פונקציה אחת שמריצה את הלולאה על כל הקלטים.
-    capsys הוא כלי של pytest שתופס את כל ה-print שהקוד שלך מייצר.
-    """
-    # 1. אתחול המשחק דרך ה-Service
-    game = Chess(board_lines)
-    assert game.is_valid_setup is True
-    
-    # 2. לולאת הרצת הפקודות (מדמה בדיוק את ה-main שלך)
-    for cmd_type, *args in commands:
-        if cmd_type == "click":
-            x, y = args
-            row = y // cg.CELL_SIZE
-            col = x // cg.CELL_SIZE
-            game.handle_click(row, col)
-            
-        elif cmd_type == "wait":
-            time_to_wait = args[0]
-            game.advance_clock(time_to_wait)
-            
-        elif cmd_type == "jump":
-            x, y = args
-            row = y // cg.CELL_SIZE
-            col = x // cg.CELL_SIZE
-            # TODO: כאן תקראי לפונקציית ה-jump החדשה שלך בסרוויס!
-            # game.handle_jump(row, col) 
-            pass 
-            
-        elif cmd_type == "print" and args[0] == "board":
-            game.print_game()
 
-    # 3. תפיסת ה-Output שהתוכנית הדפיסה והשוואה לציפייה של המרצה
-    captured = capsys.readouterr()
-    actual_output = captured.out.strip()
-    
-    # ניקוי רווחים מיותרים בשורות כדי למנוע כישלון על רווח קטן בסוף שורה
-    normalized_actual = "\n".join([line.strip() for line in actual_output.split("\n") if line.strip()])
-    normalized_expected = "\n".join([line.strip() for line in expected_output.split("\n") if line.strip()])
-    
-    assert normalized_actual == normalized_expected
+@pytest.mark.parametrize(
+    "board_rows, commands, expected",
+    [scenario[1:] for scenario in INSTRUCTOR_SCENARIOS],
+    ids=[scenario[0] for scenario in INSTRUCTOR_SCENARIOS],
+)
+def test_instructor_scenario(board_rows, commands, expected):
+    game = Chess(parse_board(*board_rows))
+    assert game.is_valid_setup is True
+
+    for cmd, *args in commands:
+        if cmd == "click":
+            run_click(game, *args)
+        elif cmd == "jump":
+            run_jump(game, *args)
+        elif cmd == "wait":
+            game.advance_clock(args[0])
+
+    assert board_text(game) == expected

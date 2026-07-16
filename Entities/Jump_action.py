@@ -1,7 +1,10 @@
+from Entities.position import Position
+
+
 class JumpAction:
     def __init__(self, piece, row, col, landing_time):
         self.piece = piece
-        self.cell = (row, col)  
+        self.cell = Position(row, col)
         self.landing_time = landing_time
 
     def is_expired(self, current_time):

@@ -1,5 +1,6 @@
 import config as cg
 from Entities.pieces import TYPE_TO_CLASS
+from errors import RowWidthMismatchError, UnknownTokenError
 
 class Board:
     def __init__(self):
@@ -18,8 +19,7 @@ class Board:
         
         for row in board_lines:
             if len(row) != self.width:
-                print("ERROR ROW_WIDTH_MISMATCH")
-                return False
+                raise RowWidthMismatchError()
                 
         self.grid = []
         
@@ -33,8 +33,7 @@ class Board:
                     continue
                     
                 if len(token) != 2 or token[0] not in (cg.COLOR_WHITE, cg.COLOR_BLACK) or token[1] not in cg.VALID_PIECE_TYPES:
-                    print("ERROR UNKNOWN_TOKEN")
-                    return False
+                    raise UnknownTokenError()
                     
                 color = token[0]
                 p_type = token[1]

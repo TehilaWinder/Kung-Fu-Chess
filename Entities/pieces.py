@@ -37,9 +37,8 @@ class Piece:
         return self.piece_type == 'K'
     def can_capture(self, other_piece):
         return other_piece.color != self.color
-# =====================================================================
-# מחלקות הכלים הספציפיות - ירושה מ-Piece
-# =====================================================================
+
+
 
 class King(Piece):
     def __init__(self, color,p_type):
