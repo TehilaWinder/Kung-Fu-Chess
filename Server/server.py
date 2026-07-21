@@ -8,9 +8,9 @@ _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
 
-_DAY1_ROOT = os.path.join(_PROJECT_ROOT, "Day1")
-if _DAY1_ROOT not in sys.path:
-    sys.path.insert(0, _DAY1_ROOT)
+_APPLICATION_ROOT = os.path.join(_PROJECT_ROOT, "Application")
+if _APPLICATION_ROOT not in sys.path:
+    sys.path.insert(0, _APPLICATION_ROOT)
 
 import websockets.asyncio.server
 
@@ -21,12 +21,15 @@ from UI.config.board_setup import START_BOARD
 
 import config as cg
 from Service.chess_game import Chess
+from Application.Infrastructure.event_bus import InMemoryEventBus
+from Application.Infrastructure.events import MOVE_COMPLETED
 
 TICK_MS = 30
 
-game = Chess(START_BOARD)
+bus = InMemoryEventBus()
+game = Chess(START_BOARD, bus=bus)
 move_log = MoveLog()
-game.scheduler.subscribe(move_log.on_move_completed)
+bus.subscribe(MOVE_COMPLETED, move_log.on_move_completed)
 
 white_ws = None
 black_ws = None

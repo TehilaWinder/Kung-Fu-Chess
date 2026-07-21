@@ -60,7 +60,7 @@ def snapshot_to_dict(game, move_log) -> dict:
 if __name__ == "__main__":
     import json
 
-    sys.path.insert(0, os.path.join(_PROJECT_ROOT, "Day1"))
+    sys.path.insert(0, os.path.join(_PROJECT_ROOT, "Application"))
 
     from Service.chess_game import Chess
     from UI.config.board_setup import START_BOARD

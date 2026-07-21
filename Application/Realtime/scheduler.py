@@ -1,6 +1,8 @@
 import config as cg
 from Entities.piece_position import PiecePosition
 from Entities.completed_move import CompletedMove
+from Infrastructure.events import Event, MOVE_COMPLETED
+from Infrastructure.event_bus import InMemoryEventBus
 
 
 def _piece_code(piece):
@@ -8,19 +10,12 @@ def _piece_code(piece):
 
 
 class Scheduler:
-    def __init__(self):
+    def __init__(self, bus: InMemoryEventBus = None):
         self.game_clock = 0
         self.pending_moves = []
         self.active_jumps = []
-        self._observers = []
-        self._completed_moves = []  # מהלכים שהושלמו ב-update() האחרון, ממתינים ל-notify של advance()
-
-    def subscribe(self, fn):
-        self._observers.append(fn)
-
-    def _notify(self, completed_move):
-        for fn in self._observers:
-            fn(completed_move)
+        self.bus = bus if bus is not None else InMemoryEventBus()
+        self._completed_moves = []  # מהלכים שהושלמו ב-update() האחרון, ממתינים לפרסום ב-advance()
 
     def queue_move(self, move):
         self.pending_moves.append(move)
@@ -108,7 +103,7 @@ class Scheduler:
             self._resolve_dynamic_collisions(board, scores)
             king_captured = self.update(board, scores)
             for completed_move in self._completed_moves:
-                self._notify(completed_move)
+                self.bus.publish(Event(MOVE_COMPLETED, completed_move))
             if king_captured:
                 return True
 

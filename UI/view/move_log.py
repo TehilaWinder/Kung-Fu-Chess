@@ -23,7 +23,8 @@ class MoveLog:
     def entries_for(self, color):
         return self._entries_by_color[color]
 
-    def on_move_completed(self, completed_move):
+    def on_move_completed(self, event):
+        completed_move = event.data
         entries = self._entries_by_color[completed_move.color]
         entries.insert(0, self._format(completed_move))
         if len(entries) > self.MAX_ENTRIES:

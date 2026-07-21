@@ -7,8 +7,12 @@ from Entities.score import Score
 from Rules.move_rules import MoveRules
 from Realtime.scheduler import Scheduler
 from errors import BoardValidationError
+from Infrastructure.events import Event, GAME_STARTED, GAME_OVER
+from Infrastructure.event_bus import InMemoryEventBus
 class Chess:
-    def __init__(self, board):
+    def __init__(self, board, bus: InMemoryEventBus = None):
+
+        self.bus = bus if bus is not None else InMemoryEventBus()
 
         self.board = Board()
         try:
@@ -20,18 +24,23 @@ class Chess:
         self.is_game_over = False
         self.selected_piece_coords = None
         self.rules = MoveRules()
-        self.scheduler = Scheduler()
+        self.scheduler = Scheduler(bus=self.bus)
         self.scores = {
             cg.COLOR_WHITE: Score(cg.COLOR_WHITE),
             cg.COLOR_BLACK: Score(cg.COLOR_BLACK),
         }
 
+        self.bus.publish(Event(GAME_STARTED))
+
+    def _end_game(self):
+        self.is_game_over = True
+        self.bus.publish(Event(GAME_OVER, self.get_winner()))
 
     def update_board(self):
         if self.is_game_over:
             return
         if self.scheduler.update(self.board, self.scores):
-            self.is_game_over = True
+            self._end_game()
 
     def get_winner(self):
         """מחזירה את צבע המלך שנשאר על הלוח, או None אם המשחק עוד לא נגמר."""
@@ -116,8 +125,8 @@ class Chess:
         if self.is_game_over:
             return
         if self.scheduler.advance(time_to_wait, self.board, self.scores):
-            self.is_game_over = True
-            
+            self._end_game()
+
     def print_game(self):
         self.update_board()
         self.board.print_board()
